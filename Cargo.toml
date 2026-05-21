@@ -1,0 +1,9 @@
+[package]
+name = "audio-player"
+version = "0.0.1"
+edition = "2024"
+
+[dependencies]
+rodio = { version = "0.22.2", features = ["symphonia-all"] }
+rand = "0.10.1"
+anyhow = "1.0.99"
