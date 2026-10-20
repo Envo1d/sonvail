@@ -9,7 +9,7 @@ use super::{
     theme,
 };
 
-pub fn now_playing(artwork_size: f32, padding: f32) -> impl IntoElement {
+pub fn now_playing(theme: theme::Palette, artwork_size: f32, padding: f32) -> impl IntoElement {
     div()
         .id("now-playing")
         .flex_1()
@@ -21,7 +21,7 @@ pub fn now_playing(artwork_size: f32, padding: f32) -> impl IntoElement {
         .child(
             div()
                 .text_size(px(13.0))
-                .text_color(rgb(theme::ACCENT))
+                .text_color(rgb(theme.accent))
                 .mb(px(24.0))
                 .child("NOW PLAYING"),
         )
@@ -49,21 +49,21 @@ pub fn now_playing(artwork_size: f32, padding: f32) -> impl IntoElement {
                         .child(
                             div()
                                 .text_size(px(20.0))
-                                .text_color(rgb(theme::ACCENT))
+                                .text_color(rgb(theme.accent))
                                 .child(demo::ARTIST),
                         )
                         .child(
                             div()
                                 .text_sm()
-                                .text_color(rgb(theme::MUTED))
+                                .text_color(rgb(theme.muted))
                                 .child(demo::ALBUM),
                         )
                         .child(div().flex().gap_2().children([
-                            badge("2017"),
-                            badge("Electronic"),
-                            badge("11 Tracks"),
+                            badge(theme, "2017"),
+                            badge(theme, "Electronic"),
+                            badge(theme, "11 Tracks"),
                         ]))
-                        .child(waveform())
+                        .child(waveform(theme))
                         .child(
                             div()
                                 .flex()
@@ -83,24 +83,25 @@ pub fn now_playing(artwork_size: f32, padding: f32) -> impl IntoElement {
                                             linear_color_stop(rgb(0x3476ff), 0.0),
                                             linear_color_stop(rgb(0x2050df), 1.0),
                                         ))
+                                        .text_color(rgb(0xffffff))
                                         .child(
-                                            icon("pause")
+                                            icon(theme, "pause")
                                                 .size(px(15.0))
-                                                .text_color(rgb(theme::TEXT)),
+                                                .text_color(rgb(0xffffff)),
                                         )
                                         .child(div().text_sm().child("Pause")),
                                 )
                                 .child(
                                     div()
                                         .rounded_md()
-                                        .bg(rgb(theme::SURFACE))
-                                        .child(icon_button("heart")),
+                                        .bg(rgb(theme.surface))
+                                        .child(icon_button(theme, "heart")),
                                 )
                                 .child(
                                     div()
                                         .rounded_md()
-                                        .bg(rgb(theme::SURFACE))
-                                        .child(icon_button("more")),
+                                        .bg(rgb(theme.surface))
+                                        .child(icon_button(theme, "more")),
                                 ),
                         ),
                 ),
@@ -114,36 +115,36 @@ pub fn now_playing(artwork_size: f32, padding: f32) -> impl IntoElement {
                 .px_3()
                 .py_3()
                 .border_b_1()
-                .border_color(rgba(theme::HAIRLINE))
+                .border_color(rgba(theme.hairline))
                 .child(
                     div()
                         .w(px(26.0))
                         .text_xs()
-                        .text_color(rgb(theme::MUTED))
+                        .text_color(rgb(theme.muted))
                         .child("#"),
                 )
-                .child(div().flex_1().child(label("TITLE")))
-                .child(icon("clock").size(px(15.0)))
+                .child(div().flex_1().child(label(theme, "TITLE")))
+                .child(icon(theme, "clock").size(px(15.0)))
                 .child(div().w(px(20.0))),
         )
         .children(
             demo::TRACKS
                 .iter()
                 .enumerate()
-                .map(|(index, track)| track_row(index, track)),
+                .map(|(index, track)| track_row(theme, index, track)),
         )
 }
 
-fn badge(text: &'static str) -> Div {
+fn badge(theme: theme::Palette, text: &'static str) -> Div {
     div()
         .px_2()
         .py_1()
         .rounded_md()
-        .bg(rgb(theme::SURFACE))
-        .child(label(text))
+        .bg(rgb(theme.surface))
+        .child(label(theme, text))
 }
 
-fn waveform() -> Div {
+fn waveform(theme: theme::Palette) -> Div {
     // A static visual placeholder, not audio analysis or playback progress.
     div()
         .flex()
@@ -162,11 +163,11 @@ fn waveform() -> Div {
                 .h(px(height))
                 .flex_shrink_0()
                 .rounded_full()
-                .bg(rgb(if index < 30 { theme::ACCENT } else { 0x4b4395 }))
+                .bg(rgb(if index < 30 { theme.accent } else { 0x4b4395 }))
         }))
 }
 
-fn track_row(index: usize, track: &demo::Track) -> Div {
+fn track_row(theme: theme::Palette, index: usize, track: &demo::Track) -> Div {
     let selected = index == demo::CURRENT_TRACK;
     div()
         .flex()
@@ -177,29 +178,33 @@ fn track_row(index: usize, track: &demo::Track) -> Div {
         .rounded_md()
         .when(selected, |this| this.bg(rgba(0x9baaca12)))
         .when(!selected, |this| {
-            this.border_b_1().border_color(rgba(theme::HAIRLINE))
+            this.border_b_1().border_color(rgba(theme.hairline))
         })
         .child(
             div()
                 .w(px(20.0))
                 .flex_shrink_0()
                 .text_xs()
-                .text_color(rgb(theme::MUTED))
+                .text_color(rgb(theme.muted))
                 .when(selected, |this| {
                     this.child(
-                        icon("playing")
+                        icon(theme, "playing")
                             .size(px(16.0))
-                            .text_color(rgb(theme::ACCENT)),
+                            .text_color(rgb(theme.accent)),
                     )
                 })
                 .when(!selected, |this| this.child((index + 1).to_string())),
         )
-        .child(super::components::track_info(track.title, demo::ARTIST))
+        .child(super::components::track_info(
+            theme,
+            track.title,
+            demo::ARTIST,
+        ))
         .child(div().w(px(20.0)).when(selected, |this| {
             this.child(
-                icon("heart-filled")
+                icon(theme, "heart-filled")
                     .size(px(16.0))
-                    .text_color(rgb(theme::ACCENT)),
+                    .text_color(rgb(theme.accent)),
             )
         }))
         .child(
@@ -207,12 +212,10 @@ fn track_row(index: usize, track: &demo::Track) -> Div {
                 .w(px(36.0))
                 .text_right()
                 .text_xs()
-                .text_color(rgb(if selected { 0x86aaff } else { theme::MUTED }))
+                .text_color(rgb(if selected { theme.accent } else { theme.muted }))
                 .child(track.duration),
         )
-        .child(
-            div()
-                .w(px(16.0))
-                .when(selected, |this| this.child(icon("more").size(px(16.0)))),
-        )
+        .child(div().w(px(16.0)).when(selected, |this| {
+            this.child(icon(theme, "more").size(px(16.0)))
+        }))
 }

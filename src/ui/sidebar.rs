@@ -1,19 +1,28 @@
-use gpui::{Div, Styled, WindowControlArea, div, img, prelude::*, px, rgb, rgba};
+use gpui::{
+    Context, Div, Stateful, Styled, WindowControlArea, div, img, prelude::*, px, rgb, rgba,
+};
 
 use super::{
-    components::{icon_button, label, toggle},
+    components::{icon_button, label},
     icons::{APP_ICON_SIZE, app_icon_path, icon},
+    root::{Page, RootView},
     theme,
 };
 
-pub fn sidebar(scale_factor: f32, width: f32) -> Div {
+pub fn sidebar(
+    theme: theme::Palette,
+    scale_factor: f32,
+    width: f32,
+    page: Page,
+    cx: &Context<RootView>,
+) -> Div {
     div()
         .w(px(width))
         .h_full()
         .flex_shrink_0()
         .flex()
         .flex_col()
-        .bg(rgba(theme::SIDEBAR_TINT))
+        .bg(rgba(theme.sidebar_tint))
         .px(px(15.0))
         .py(px(28.0))
         .gap_5()
@@ -41,27 +50,34 @@ pub fn sidebar(scale_factor: f32, width: f32) -> Div {
                 .px_3()
                 .rounded_md()
                 .border_1()
-                .border_color(rgb(theme::BORDER))
-                .child(icon("search").size(px(15.0)))
+                .border_color(rgb(theme.border))
+                .child(icon(theme, "search").size(px(15.0)))
                 .child(
                     div()
                         .flex_1()
                         .text_size(px(13.0))
-                        .text_color(rgb(theme::MUTED))
+                        .text_color(rgb(theme.muted))
                         .child("Search"),
                 )
-                .child(label("Ctrl + K")),
+                .child(label(theme, "Ctrl + K")),
         )
         .child(
             div()
                 .flex()
                 .flex_col()
                 .gap_1()
-                .child(nav_item("playing", "Now Playing", true))
-                .child(nav_item("library", "Library", false))
-                .child(nav_item("playlist", "Playlists", false))
-                .child(nav_item("album", "Albums", false))
-                .child(nav_item("artist", "Artists", false)),
+                .child(
+                    nav_item(theme, "playing", "Now Playing", page == Page::NowPlaying).on_click(
+                        cx.listener(|view, _, _, cx| {
+                            view.page = Page::NowPlaying;
+                            cx.notify();
+                        }),
+                    ),
+                )
+                .child(nav_item(theme, "library", "Library", false))
+                .child(nav_item(theme, "playlist", "Playlists", false))
+                .child(nav_item(theme, "album", "Albums", false))
+                .child(nav_item(theme, "artist", "Artists", false)),
         )
         .child(
             div()
@@ -76,43 +92,33 @@ pub fn sidebar(scale_factor: f32, width: f32) -> Div {
                         .justify_between()
                         .pl_2()
                         .mb_2()
-                        .child(label("PLAYLISTS"))
-                        .child(icon_button("plus")),
+                        .child(label(theme, "PLAYLISTS"))
+                        .child(icon_button(theme, "plus")),
                 )
-                .child(nav_item("heart", "My Favorites", false))
-                .child(nav_item("playlist", "Chill Vibes", false))
-                .child(nav_item("playing", "Workout", false))
-                .child(nav_item("album", "Focus", false))
-                .child(nav_item("playlist", "Road Trip", false)),
+                .child(nav_item(theme, "heart", "My Favorites", false))
+                .child(nav_item(theme, "playlist", "Chill Vibes", false))
+                .child(nav_item(theme, "playing", "Workout", false))
+                .child(nav_item(theme, "album", "Focus", false))
+                .child(nav_item(theme, "playlist", "Road Trip", false)),
         )
-        .child(
-            div()
-                .flex()
-                .flex_col()
-                .gap_1()
-                .child(nav_item("settings", "Settings", false))
-                .child(
-                    div()
-                        .flex()
-                        .items_center()
-                        .gap_3()
-                        .px_3()
-                        .py_2()
-                        .child(icon("sun"))
-                        .child(
-                            div()
-                                .flex_1()
-                                .text_sm()
-                                .text_color(rgb(theme::MUTED))
-                                .child("Light Mode"),
-                        )
-                        .child(toggle(false)),
-                ),
-        )
+        .child(div().flex().flex_col().gap_1().child(
+            nav_item(theme, "settings", "Settings", page == Page::Settings).on_click(cx.listener(
+                |view, _, _, cx| {
+                    view.page = Page::Settings;
+                    cx.notify();
+                },
+            )),
+        ))
 }
 
-fn nav_item(symbol: &'static str, title: &'static str, selected: bool) -> Div {
+fn nav_item(
+    theme: theme::Palette,
+    symbol: &'static str,
+    title: &'static str,
+    selected: bool,
+) -> Stateful<Div> {
     div()
+        .id(title)
         .flex()
         .items_center()
         .gap_3()
@@ -120,8 +126,16 @@ fn nav_item(symbol: &'static str, title: &'static str, selected: bool) -> Div {
         .px_3()
         .rounded_md()
         .text_sm()
-        .text_color(rgb(if selected { theme::TEXT } else { theme::MUTED }))
-        .when(selected, |this| this.bg(rgb(theme::SELECTED)))
-        .child(icon(symbol).text_color(rgb(if selected { theme::TEXT } else { theme::MUTED })))
+        .text_color(rgb(if selected { theme.text } else { theme.muted }))
+        .when(selected, |this| this.bg(rgb(theme.selected)))
+        .cursor_pointer()
+        .hover(move |style| {
+            style.bg(rgba(if selected {
+                (theme.accent << 8) | 0x48
+            } else {
+                (theme.text << 8) | 0x0c
+            }))
+        })
+        .child(icon(theme, symbol).text_color(rgb(if selected { theme.text } else { theme.muted })))
         .child(title)
 }

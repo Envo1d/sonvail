@@ -1,15 +1,45 @@
+use crate::config::ConfigStore;
 use gpui::{Context, IntoElement, Render, Styled, Window, div, prelude::*, px, rgb, rgba};
 
 use super::{
-    layout::Layout, now_playing::now_playing, player_bar::player_bar, queue::queue,
-    sidebar::sidebar, theme, titlebar::titlebar,
+    layout::Layout,
+    now_playing::now_playing,
+    player_bar::player_bar,
+    queue::queue,
+    settings::{Settings, settings_view},
+    sidebar::sidebar,
+    titlebar::titlebar,
 };
 
-pub struct RootView;
+#[derive(Clone, Copy, Default, PartialEq, Eq)]
+pub enum Page {
+    #[default]
+    NowPlaying,
+    Settings,
+}
+
+pub struct RootView {
+    pub(super) page: Page,
+    pub(super) settings: Settings,
+    pub(super) config: ConfigStore,
+}
+
+impl RootView {
+    pub fn new(config: ConfigStore, window: &mut Window, cx: &mut Context<Self>) -> Self {
+        cx.observe_window_appearance(window, |_, _, cx| cx.notify())
+            .detach();
+        Self {
+            page: Page::default(),
+            settings: Settings::from_config(config.snapshot()),
+            config,
+        }
+    }
+}
 
 impl Render for RootView {
-    fn render(&mut self, window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let layout = Layout::for_width(window.viewport_size().width.into());
+        let theme = self.settings.theme.palette(window.appearance());
         div()
             .size_full()
             .flex()
@@ -17,8 +47,8 @@ impl Render for RootView {
             .overflow_hidden()
             .font_family("Segoe UI")
             .text_size(px(14.0))
-            .bg(rgba(theme::WINDOW_TINT))
-            .text_color(rgb(theme::TEXT))
+            .bg(rgba(theme.window_tint))
+            .text_color(rgb(theme.text))
             .child(
                 div()
                     .flex()
@@ -26,7 +56,13 @@ impl Render for RootView {
                     .min_h_0()
                     .w_full()
                     .overflow_hidden()
-                    .child(sidebar(window.scale_factor(), layout.sidebar))
+                    .child(sidebar(
+                        theme,
+                        window.scale_factor(),
+                        layout.sidebar,
+                        self.page,
+                        cx,
+                    ))
                     .child(
                         div()
                             .flex()
@@ -34,7 +70,7 @@ impl Render for RootView {
                             .flex_1()
                             .min_w_0()
                             .h_full()
-                            .child(titlebar(window))
+                            .child(titlebar(theme, window))
                             .child(
                                 div()
                                     .flex()
@@ -42,11 +78,20 @@ impl Render for RootView {
                                     .min_h_0()
                                     .w_full()
                                     .overflow_hidden()
-                                    .child(now_playing(layout.artwork, layout.padding))
-                                    .child(queue(layout.queue)),
+                                    .when(self.page == Page::NowPlaying, |this| {
+                                        this.child(now_playing(
+                                            theme,
+                                            layout.artwork,
+                                            layout.padding,
+                                        ))
+                                        .child(queue(theme, layout.queue))
+                                    })
+                                    .when(self.page == Page::Settings, |this| {
+                                        this.child(settings_view(self, theme, layout, cx))
+                                    }),
                             ),
                     ),
             )
-            .child(player_bar())
+            .child(player_bar(theme))
     }
 }

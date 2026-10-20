@@ -5,14 +5,14 @@ use super::{
     theme,
 };
 
-pub fn label(text: &'static str) -> Div {
+pub fn label(theme: theme::Palette, text: &'static str) -> Div {
     div()
         .text_size(px(13.0))
-        .text_color(rgb(theme::MUTED))
+        .text_color(rgb(theme.muted))
         .child(text)
 }
 
-pub fn icon_button(name: &'static str) -> Div {
+pub fn icon_button(theme: theme::Palette, name: &'static str) -> Div {
     div()
         .flex()
         .items_center()
@@ -20,7 +20,7 @@ pub fn icon_button(name: &'static str) -> Div {
         .w(px(50.0))
         .h(px(39.0))
         .rounded_md()
-        .child(icon(name))
+        .child(icon(theme, name))
 }
 
 pub fn cover(edge: f32, color: u32) -> Div {
@@ -41,7 +41,7 @@ pub fn artwork(width: f32, height: f32) -> Img {
         .rounded_lg()
 }
 
-pub fn toggle(on: bool) -> Div {
+pub fn toggle(theme: theme::Palette, on: bool) -> Div {
     div()
         .flex()
         .items_center()
@@ -49,16 +49,16 @@ pub fn toggle(on: bool) -> Div {
         .h(px(21.0))
         .px(px(3.0))
         .rounded_full()
-        .bg(rgb(if on { theme::ACCENT } else { theme::SURFACE }))
+        .bg(rgb(if on { theme.accent } else { theme.surface }))
         .when(on, |this| this.justify_end())
         .child(div().size(px(15.0)).rounded_full().bg(rgb(if on {
-            theme::TEXT
+            theme.text
         } else {
-            theme::MUTED
+            theme.muted
         })))
 }
 
-pub fn track_info(title: &'static str, artist: &'static str) -> Div {
+pub fn track_info(theme: theme::Palette, title: &'static str, artist: &'static str) -> Div {
     div()
         .flex_1()
         .min_w_0()
@@ -73,7 +73,7 @@ pub fn track_info(title: &'static str, artist: &'static str) -> Div {
                 .truncate()
                 .w_full()
                 .text_size(px(13.0))
-                .text_color(rgb(theme::MUTED))
+                .text_color(rgb(theme.muted))
                 .child(artist),
         )
 }

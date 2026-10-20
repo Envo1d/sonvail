@@ -2,7 +2,7 @@ use gpui::{Div, Styled, Window, WindowControlArea, div, prelude::*, px, rgb};
 
 use super::{icons::icon, theme};
 
-pub fn titlebar(window: &Window) -> Div {
+pub fn titlebar(theme: theme::Palette, window: &Window) -> Div {
     div()
         .flex()
         .w_full()
@@ -18,11 +18,13 @@ pub fn titlebar(window: &Window) -> Div {
                 .window_control_area(WindowControlArea::Drag),
         )
         .child(window_button(
+            theme,
             "window-minimize",
             "minimize",
             WindowControlArea::Min,
         ))
         .child(window_button(
+            theme,
             "window-maximize",
             if window.is_maximized() {
                 "restore"
@@ -32,6 +34,7 @@ pub fn titlebar(window: &Window) -> Div {
             WindowControlArea::Max,
         ))
         .child(window_button(
+            theme,
             "window-close",
             "close",
             WindowControlArea::Close,
@@ -39,6 +42,7 @@ pub fn titlebar(window: &Window) -> Div {
 }
 
 fn window_button(
+    theme: theme::Palette,
     id: &'static str,
     symbol: &'static str,
     area: WindowControlArea,
@@ -58,15 +62,19 @@ fn window_button(
             style.bg(rgb(if area == WindowControlArea::Close {
                 0xc42b3c
             } else {
-                theme::SURFACE
+                theme.surface
             }))
         })
         .active(move |style| {
             style.bg(rgb(if area == WindowControlArea::Close {
                 0xa92333
             } else {
-                theme::SELECTED
+                theme.selected
             }))
         })
-        .child(icon(symbol).size(px(15.0)).text_color(rgb(theme::TEXT)))
+        .child(
+            icon(theme, symbol)
+                .size(px(15.0))
+                .text_color(rgb(theme.text)),
+        )
 }

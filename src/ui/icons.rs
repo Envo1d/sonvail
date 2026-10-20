@@ -159,10 +159,10 @@ impl AssetSource for Assets {
     }
 }
 
-pub fn icon(name: &'static str) -> Svg {
+pub fn icon(theme: theme::Palette, name: &'static str) -> Svg {
     svg()
         .path(format!("icons/{name}.svg"))
         .size(px(19.0))
         .flex_shrink_0()
-        .text_color(rgb(theme::MUTED))
+        .text_color(rgb(theme.muted))
 }

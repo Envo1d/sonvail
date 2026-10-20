@@ -4,6 +4,7 @@ pub struct Layout {
     pub queue: f32,
     pub artwork: f32,
     pub padding: f32,
+    pub settings_max_width: f32,
 }
 
 impl Layout {
@@ -17,6 +18,7 @@ impl Layout {
             queue,
             artwork: (content * 0.4).clamp(196.0, 276.0),
             padding,
+            settings_max_width: 880.0,
         }
     }
 }

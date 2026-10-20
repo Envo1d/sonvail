@@ -6,6 +6,7 @@ mod now_playing;
 mod player_bar;
 mod queue;
 mod root;
+mod settings;
 mod sidebar;
 mod theme;
 mod titlebar;

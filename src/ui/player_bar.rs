@@ -7,7 +7,7 @@ use super::{
     theme,
 };
 
-pub fn player_bar() -> Div {
+pub fn player_bar(theme: theme::Palette) -> Div {
     div()
         .h(px(122.0))
         .w_full()
@@ -17,9 +17,9 @@ pub fn player_bar() -> Div {
         .justify_between()
         .gap_6()
         .px_6()
-        .bg(rgba(theme::PLAYER_TINT))
+        .bg(rgba(theme.player_tint))
         .border_t_1()
-        .border_color(rgba(theme::HAIRLINE))
+        .border_color(rgba(theme.hairline))
         .child(
             div()
                 .w(relative(0.28))
@@ -28,8 +28,8 @@ pub fn player_bar() -> Div {
                 .items_center()
                 .gap_4()
                 .child(cover(70.0, 0x986689))
-                .child(track_info(demo::ALBUM, demo::ARTIST).text_size(px(16.0)))
-                .child(icon("heart-filled").text_color(rgb(theme::ACCENT))),
+                .child(track_info(theme, demo::ALBUM, demo::ARTIST).text_size(px(16.0)))
+                .child(icon(theme, "heart-filled").text_color(rgb(theme.accent))),
         )
         .child(
             div()
@@ -45,24 +45,24 @@ pub fn player_bar() -> Div {
                         .flex()
                         .items_center()
                         .gap_2()
-                        .child(icon_button("shuffle"))
-                        .child(icon_button("previous"))
+                        .child(icon_button(theme, "shuffle"))
+                        .child(icon_button(theme, "previous"))
                         .child(
                             div()
                                 .size(px(50.0))
                                 .rounded_full()
-                                .bg(rgb(theme::TEXT))
+                                .bg(rgb(theme.text))
                                 .flex()
                                 .items_center()
                                 .justify_center()
                                 .child(
-                                    icon("pause")
+                                    icon(theme, "pause")
                                         .size(px(24.0))
-                                        .text_color(rgb(theme::BACKGROUND)),
+                                        .text_color(rgb(theme.background)),
                                 ),
                         )
-                        .child(icon_button("next"))
-                        .child(icon_button("repeat")),
+                        .child(icon_button(theme, "next"))
+                        .child(icon_button(theme, "repeat")),
                 )
                 .child(
                     div()
@@ -70,20 +70,20 @@ pub fn player_bar() -> Div {
                         .flex()
                         .items_center()
                         .gap_3()
-                        .child(label("1:45"))
+                        .child(label(theme, "1:45"))
                         .child(
                             div()
                                 .flex_1()
                                 .h(px(4.0))
                                 .rounded_full()
-                                .bg(rgb(theme::BORDER))
+                                .bg(rgb(theme.border))
                                 .child(
                                     div()
                                         .relative()
                                         .w(relative(0.45))
                                         .h_full()
                                         .rounded_full()
-                                        .bg(rgb(theme::ACCENT))
+                                        .bg(rgb(theme.accent))
                                         .child(
                                             div()
                                                 .absolute()
@@ -91,11 +91,11 @@ pub fn player_bar() -> Div {
                                                 .top(px(-1.0))
                                                 .size(px(6.0))
                                                 .rounded_full()
-                                                .bg(rgb(theme::ACCENT)),
+                                                .bg(rgb(theme.accent)),
                                         ),
                                 ),
                         )
-                        .child(label("3:53")),
+                        .child(label(theme, "3:53")),
                 ),
         )
         .child(
@@ -105,21 +105,21 @@ pub fn player_bar() -> Div {
                 .items_center()
                 .justify_end()
                 .gap_3()
-                .child(icon("volume"))
+                .child(icon(theme, "volume"))
                 .child(
                     div()
                         .w(px(132.0))
                         .flex_shrink()
                         .h(px(4.0))
                         .rounded_full()
-                        .bg(rgb(theme::BORDER))
+                        .bg(rgb(theme.border))
                         .child(
                             div()
                                 .relative()
                                 .w(relative(0.45))
                                 .h_full()
                                 .rounded_full()
-                                .bg(rgb(theme::ACCENT))
+                                .bg(rgb(theme.accent))
                                 .child(
                                     div()
                                         .absolute()
@@ -131,7 +131,7 @@ pub fn player_bar() -> Div {
                                 ),
                         ),
                 )
-                .child(icon_button("device"))
-                .child(icon_button("expand")),
+                .child(icon_button(theme, "device"))
+                .child(icon_button(theme, "expand")),
         )
 }
