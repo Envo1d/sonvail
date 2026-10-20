@@ -2,8 +2,13 @@
 name = "audio-player"
 version = "0.0.1"
 edition = "2024"
+default-run = "audio-player"
 
 [dependencies]
 rodio = { version = "0.22.2", features = ["symphonia-all"] }
 rand = "0.10.1"
 anyhow = "1.0.99"
+gpui = "=0.2.2"
+
+[build-dependencies]
+embed-resource = "=3.0.12"

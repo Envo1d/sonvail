@@ -1,0 +1,22 @@
+// Dimensions follow the reference window while keeping the minimum window usable.
+pub struct Layout {
+    pub sidebar: f32,
+    pub queue: f32,
+    pub artwork: f32,
+    pub padding: f32,
+}
+
+impl Layout {
+    pub fn for_width(width: f32) -> Self {
+        let sidebar = (width * 0.188).clamp(232.0, 268.0);
+        let queue = (width * 0.278).clamp(300.0, 394.0);
+        let padding = if width < 1280.0 { 24.0 } else { 34.0 };
+        let content = width - sidebar - queue - padding * 2.0;
+        Self {
+            sidebar,
+            queue,
+            artwork: (content * 0.4).clamp(196.0, 276.0),
+            padding,
+        }
+    }
+}
