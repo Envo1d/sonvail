@@ -29,6 +29,8 @@ Sonvail is under active development. Search, favorites, persistent playlists and
 
 ## Getting Started
 
+When a Windows release is available on [GitHub Releases](https://github.com/Envo1d/sonvail/releases), download and install `Sonvail-win-x64-Setup.exe`. Installing through Setup enables package updates from Settings. You can also run the player from source using the development instructions below.
+
 1. Run Sonvail and open **Settings**.
 2. Use **Add folders** to select one or more music folders.
 3. Open **Library** and let the initial indexing finish. Later filesystem changes are detected automatically.
@@ -47,7 +49,7 @@ cd sonvail
 cargo run --locked
 ```
 
-The Cargo package and GUI binary are named `audio-player`. The earlier console prototype remains a separate `audio-player-cli` binary; it is not the GUI's playback backend.
+The Cargo package and application binary are named `audio-player`.
 
 ### Validation
 
@@ -59,24 +61,81 @@ cargo clippy --all-targets --locked
 
 Automated tests use temporary files and databases, synthetic audio and a fake output device. They do not launch the GUI or play audio through a real device. Manually verify playback, pause/resume, skipping, stop, seeking, repeat/shuffle, empty queues, device reconnection and window behavior.
 
-### Release Builds
+### Build a Windows Executable
+
+Build the player for Windows x64:
 
 ```powershell
-cargo build --release --locked
+cargo build --release --locked --bin audio-player --target x86_64-pc-windows-msvc
 ```
 
-The GUI executable is written to `target/release/audio-player.exe`. GPUI's Windows release build needs the Windows SDK shader compiler, `fxc.exe`. If it is not discovered automatically, set `GPUI_FXC_PATH` to its installed location before building:
+The executable is written to `target/x86_64-pc-windows-msvc/release/audio-player.exe`. This produces a standalone executable; use the packaging instructions below to create Setup and update packages.
+
+GPUI's Windows release build needs the Windows SDK shader compiler, `fxc.exe`. If it is not discovered automatically, set `GPUI_FXC_PATH` to the compiler from your installed SDK. For example, this locates it in the standard Windows SDK directory:
 
 ```powershell
-$env:GPUI_FXC_PATH = 'C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\fxc.exe'
-cargo build --release --locked
+$compiler = Get-ChildItem 'C:\Program Files (x86)\Windows Kits\10\bin\*\x64\fxc.exe' |
+    Sort-Object FullName -Descending |
+    Select-Object -First 1
+if (-not $compiler) { throw 'Install the Windows SDK with fxc.exe first.' }
+$env:GPUI_FXC_PATH = $compiler.FullName
 ```
 
-Replace the SDK version in the example with the version installed on your machine.
+Then repeat the build command.
 
-Windows Setup and update packages are prepared by `scripts/build-windows.ps1`. Packaging requires Node.js 24, .NET 8 and a separate Sonvail Ed25519 signing key. Generate a key outside the repository with `node scripts/updater-signing.mjs generate <private-key-path>`, set `SONVAIL_UPDATER_PUBLIC_KEY` to the contents of the generated `.pub` file, and pass `-SigningKeyPath` when packaging.
+### Package a Windows Release
 
-The Windows release workflow runs on `main`, checks the version in `Cargo.toml` against `Cargo.lock` and existing releases, then publishes a complete signed release. Configure the repository variable `SONVAIL_UPDATER_PUBLIC_KEY` and secret `SONVAIL_SIGNING_PRIVATE_KEY` (private PEM contents) before using it. Keep the same signing key for future releases. Standalone development executables cannot use package updates. Installer and end-to-end update behavior still require manual Windows verification.
+In addition to the Rust/MSVC and Windows SDK requirements, packaging needs **Node.js 24**, **.NET 8** and a dedicated Sonvail Ed25519 signing key. Node.js and .NET are packaging tools; users do not need them to run Sonvail.
+
+Keep signing keys outside the repository. For first-time release setup, generate a pair in a private directory. This example uses the current user's profile without embedding a machine-specific path:
+
+```powershell
+$signingDirectory = Join-Path $env:USERPROFILE '.sonvail-signing'
+New-Item -ItemType Directory -Path $signingDirectory -Force | Out-Null
+node scripts/updater-signing.mjs generate (Join-Path $signingDirectory 'updater.pem')
+```
+
+The command creates `updater.pem` (private key) and `updater.pem.pub` (public key), and refuses to overwrite existing files. Back up the private key securely and reuse the same pair for subsequent releases so installed versions can verify future updates.
+
+To package with an existing key pair, set the path to the private key and load its public companion before building:
+
+```powershell
+$signingKeyPath = Join-Path $env:USERPROFILE '.sonvail-signing\updater.pem'
+$env:SONVAIL_UPDATER_PUBLIC_KEY = (Get-Content "$signingKeyPath.pub" -Raw).Trim()
+./scripts/build-windows.ps1 -SigningKeyPath $signingKeyPath
+```
+
+Adjust `$signingKeyPath` if the key is stored elsewhere. The script compiles the application with the public key, downloads a pinned Velopack packaging tool with checksum verification, creates Setup and a full update package, signs the release feed and validates the output. The private key is used only for signing; it is not embedded in the application.
+
+Artifacts are written to `target/release/bundle/velopack/<version>/`:
+
+- `Sonvail-win-x64-Setup.exe`
+- `Sonvail-<version>-win-x64-full.nupkg`
+- `releases.win-x64.json`
+- `releases.win-x64.json.sig`
+
+The version comes from `Cargo.toml` and must match `Cargo.lock`. Pass `-ReleaseNotesPath <markdown-file>` to include release notes in the update. The script refuses to reuse an existing output directory for the same version.
+
+### Publish Signed Releases
+
+The Windows release workflow runs on pushes to `main` or a manual run on `main`. Configure these repository settings under **Settings → Secrets and variables → Actions**:
+
+| Kind | Name | Value |
+| --- | --- | --- |
+| Variable | `SONVAIL_UPDATER_PUBLIC_KEY` | Contents of the `.pub` file |
+| Secret | `SONVAIL_SIGNING_PRIVATE_KEY` | Full private PEM contents, including line breaks |
+
+Set a new stable `x.y.z` version in `Cargo.toml`, update `Cargo.lock`, and push the committed changes to `main`. The workflow skips versions that are already published or are not higher than the latest stable release. It runs tests, formatting and Clippy, builds the Windows packages, creates a tag on the built commit and uploads all four artifacts to a draft before publishing it as the latest release. Existing tags are never moved.
+
+Keep private keys out of source control, release attachments and issue reports. Installer packaging, the workflow and end-to-end updates still require manual Windows verification.
+
+## Updating Sonvail
+
+1. Open **Settings → Updates** and select **Check for updates**.
+2. Review the available version and release notes.
+3. Select **Install and restart**. Sonvail downloads the package, verifies its signature-backed size and SHA-256, then stops playback and exits before the updater replaces application files and restarts the player.
+
+Your music, settings, library database and artwork cache stay in their existing locations. Download or verification errors leave the player open and allow a retry. Updates require an initial installation through Sonvail Setup and a build containing the trusted public key; standalone development executables cannot use package updates.
 
 ## Local Data
 
