@@ -17,7 +17,6 @@ impl ThemeMode {
 
 #[derive(Clone, Copy)]
 pub struct Palette {
-    pub background: u32,
     pub surface: u32,
     pub border: u32,
     pub text: u32,
@@ -32,7 +31,6 @@ pub struct Palette {
 
 // Alpha is intentional: opaque root and panel fills would conceal native acrylic.
 const DARK: Palette = Palette {
-    background: 0x0b1220,
     surface: 0x182230,
     border: 0x1c2736,
     text: 0xe8edf5,
@@ -46,7 +44,6 @@ const DARK: Palette = Palette {
 };
 
 const LIGHT: Palette = Palette {
-    background: 0xf4f7fc,
     surface: 0xe4eaf3,
     border: 0xc5cede,
     text: 0x182438,

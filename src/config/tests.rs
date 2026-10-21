@@ -9,6 +9,43 @@ fn paths(directory: &std::path::Path) -> AppPaths {
 }
 
 #[test]
+fn rebranding_reuses_legacy_data_but_prefers_existing_new_storage() {
+    let temp = tempfile::tempdir().unwrap();
+    let current = paths(&temp.path().join("Sonvail"));
+    let legacy = paths(&temp.path().join("Soundora"));
+    assert_eq!(
+        AppPaths::prefer_existing(current.clone(), legacy.clone())
+            .unwrap()
+            .config_path,
+        current.config_path
+    );
+    fs::create_dir_all(legacy.library_path.parent().unwrap()).unwrap();
+    fs::write(&legacy.library_path, b"existing database").unwrap();
+    assert_eq!(
+        AppPaths::prefer_existing(current.clone(), legacy.clone())
+            .unwrap()
+            .library_path,
+        legacy.library_path
+    );
+    fs::create_dir_all(current.config_path.parent().unwrap()).unwrap();
+    fs::write(
+        &current.config_path,
+        b"invalid config must still take precedence",
+    )
+    .unwrap();
+    assert_eq!(
+        AppPaths::prefer_existing(current.clone(), legacy.clone())
+            .unwrap()
+            .config_path,
+        current.config_path
+    );
+    assert_eq!(
+        fs::read(&legacy.library_path).unwrap(),
+        b"existing database"
+    );
+}
+
+#[test]
 fn missing_config_is_created_and_changes_survive_reload() {
     let directory = tempfile::tempdir().unwrap();
     let paths = paths(directory.path());

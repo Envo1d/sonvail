@@ -18,7 +18,7 @@ fn shutdown_flushes_pending_events_and_is_idempotent_across_clones() {
     let entries = fs_entries(directory.path());
     assert_eq!(entries.len(), 1);
     let name = entries[0].file_name().unwrap().to_string_lossy();
-    assert!(name.starts_with("Soundora."));
+    assert!(name.starts_with("Sonvail."));
     assert!(name.ends_with(".log"));
     let content = std::fs::read_to_string(&entries[0]).unwrap();
     assert!(content.contains("settings persisted test event"));

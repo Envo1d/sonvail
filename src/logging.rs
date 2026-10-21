@@ -32,7 +32,7 @@ impl ShutdownLogs {
 pub fn file_writer(directory: &Path) -> Result<(NonBlocking, WorkerGuard)> {
     let appender = tracing_appender::rolling::RollingFileAppender::builder()
         .rotation(Rotation::DAILY)
-        .filename_prefix("Soundora")
+        .filename_prefix("Sonvail")
         .filename_suffix("log")
         .build(directory)
         .context("Cannot initialize log files")?;

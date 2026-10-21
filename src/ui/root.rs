@@ -5,11 +5,13 @@ use super::{
     layout::Layout,
     library::{Library, library_view},
     now_playing::now_playing,
+    playback::Playback,
     player_bar::player_bar,
     queue::queue,
     settings::{Settings, settings_view},
     sidebar::sidebar,
     titlebar::titlebar,
+    updater::Updater,
 };
 
 #[derive(Clone, Copy, Default, PartialEq, Eq)]
@@ -25,6 +27,8 @@ pub struct RootView {
     pub(super) settings: Settings,
     pub(super) config: ConfigStore,
     pub(super) library: Library,
+    pub(super) playback: Playback,
+    pub(super) updater: Updater,
 }
 
 impl RootView {
@@ -36,8 +40,11 @@ impl RootView {
             settings: Settings::from_config(config.snapshot()),
             config,
             library: Library::default(),
+            playback: Playback::default(),
+            updater: Updater::default(),
         };
         view.start_library(cx);
+        view.start_playback(cx);
         view
     }
 }
@@ -85,12 +92,8 @@ impl Render for RootView {
                                     .w_full()
                                     .overflow_hidden()
                                     .when(self.page == Page::NowPlaying, |this| {
-                                        this.child(now_playing(
-                                            theme,
-                                            layout.artwork,
-                                            layout.padding,
-                                        ))
-                                        .child(queue(theme, layout.queue))
+                                        this.child(now_playing(self, theme, layout, cx))
+                                            .child(queue(self, theme, layout.queue, cx))
                                     })
                                     .when(self.page == Page::Settings, |this| {
                                         this.child(settings_view(self, theme, layout, cx))
@@ -101,6 +104,6 @@ impl Render for RootView {
                             ),
                     ),
             )
-            .child(player_bar(theme))
+            .child(player_bar(self, theme, cx))
     }
 }

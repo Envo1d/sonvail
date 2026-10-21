@@ -1,4 +1,5 @@
 use gpui::{Context, FontWeight, Styled, Task, div, prelude::*, px, rgb, rgba, uniform_list};
+use std::sync::Arc;
 
 use crate::library::{
     Track,
@@ -6,6 +7,7 @@ use crate::library::{
 };
 
 use super::{
+    components::{duration_label, track_artwork},
     layout::Layout,
     root::{Page, RootView},
     theme::Palette,
@@ -13,7 +15,7 @@ use super::{
 
 #[derive(Default)]
 pub(super) struct Library {
-    tracks: Vec<Track>,
+    pub(super) tracks: Arc<Vec<Track>>,
     errors: usize,
     message: Option<String>,
     scanning: bool,
@@ -39,10 +41,16 @@ impl RootView {
                                     Update::Snapshot(snapshot)
                                         if snapshot.revision == view.library.revision =>
                                     {
-                                        view.library.tracks = snapshot.tracks;
+                                        view.library.tracks = Arc::new(snapshot.tracks);
                                         view.library.errors = snapshot.errors;
                                         view.library.message = snapshot.warning;
                                         view.library.scanning = snapshot.scanning;
+                                        view.playback_command(
+                                            crate::playback::Command::RefreshLibrary(
+                                                view.library.tracks.clone(),
+                                            ),
+                                            cx,
+                                        );
                                     }
                                     Update::Failed { revision, message } => {
                                         tracing::error!(revision, "Library worker stopped");
@@ -63,7 +71,7 @@ impl RootView {
             Err(error) => {
                 tracing::error!(%error, "Cannot start library");
                 self.library.message = Some(format!(
-                    "Cannot start library: {error}. Restart Soundora to try again."
+                    "Cannot start library: {error}. Restart Sonvail to try again."
                 ));
                 self.library.scanning = false;
             }
@@ -72,7 +80,7 @@ impl RootView {
 
     pub(super) fn update_library_sources(&mut self, cx: &mut Context<Self>) {
         self.library.revision += 1;
-        self.library.tracks.clear();
+        self.library.tracks = Arc::default();
         self.library.scanning = true;
         if let Some(service) = &self.library.service {
             if let Err(error) = service.set_sources(
@@ -80,7 +88,7 @@ impl RootView {
                 self.config.snapshot().library_folders.clone(),
             ) {
                 self.library.message = Some(format!(
-                    "{error}. Restart Soundora to reconnect the library."
+                    "{error}. Restart Sonvail to reconnect the library."
                 ));
                 self.library.scanning = false;
             }
@@ -125,18 +133,33 @@ pub(super) fn library_view(
         })
         .child(uniform_list("library-tracks", library.tracks.len(), move |range, _, cx| {
             let view = entity.read(cx);
-            range.filter_map(|index| view.library.tracks.get(index)).map(|track| {
-                div().h(px(68.0)).w_full().min_w_0().flex().flex_col().justify_center()
+            range.filter_map(|index| view.library.tracks.get(index).map(|track| (index, track))).map(|(index, track)| {
+                let root = entity.clone();
+                let tracks = view.library.tracks.clone();
+                let artwork = view.config.library_path().with_file_name("artwork");
+                let selected = view.playback.snapshot.track().is_some_and(|playing| playing.path == track.path);
+                div().id(("library-track", index)).h(px(90.0)).w_full().min_w_0().flex().items_center().gap_3().cursor_pointer()
                     .px_3().border_b_1().border_color(rgba(theme.hairline))
-                    .child(div().truncate().child(track.title.clone()))
-                    .child(div().truncate().text_sm().text_color(rgb(theme.muted)).child(display_path(&track.path)))
+                    .when(selected, |this| this.bg(rgba((theme.accent << 8) | 0x18)))
+                    .hover(move |style| style.bg(rgba((theme.text << 8) | 0x0c)))
+                    .on_click(move |_, _, cx| root.update(cx, |view, cx| {
+                        view.playback_command(crate::playback::Command::Play { tracks: tracks.clone(), index }, cx);
+                    }))
+                    .child(track_artwork(theme, Some(track), &artwork, 52.0))
+                    .child(div().flex_1().min_w_0()
+                        .child(div().truncate().child(track.title.clone()))
+                        .child(div().truncate().text_sm().text_color(rgb(theme.muted)).child(format!("{} · {}", track.artist(), track.album())))
+                        .child(div().truncate().text_xs().text_color(rgb(theme.muted)).child(display_path(&track.path))))
+                    .child(div().w(px(130.0)).truncate().text_sm().text_color(rgb(theme.muted)).child(track.metadata.release_date.clone().unwrap_or_default()))
+                    .child(div().w(px(120.0)).truncate().text_sm().text_color(rgb(theme.muted)).child(track.metadata.genres.join(", ")))
+                    .child(div().w(px(56.0)).text_right().text_sm().child(duration_label(track.metadata.duration_ms)))
             }).collect()
         }).flex_1().min_h_0())
 }
 
 // Canonical paths retain their Windows extended prefix for filesystem access.
 // Only ordinary disk/UNC paths get a friendlier representation in the UI.
-fn display_path(path: &std::path::Path) -> String {
+pub(super) fn display_path(path: &std::path::Path) -> String {
     let display = path.display().to_string();
     #[cfg(windows)]
     if let Some(std::path::Component::Prefix(prefix)) = path.components().next() {

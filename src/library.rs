@@ -1,16 +1,45 @@
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     fs,
     path::{Path, PathBuf},
 };
 
+pub mod metadata;
 pub mod service;
 mod store;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Track {
     pub path: PathBuf,
     pub title: String,
+    pub metadata: metadata::Metadata,
+}
+
+impl Track {
+    pub fn from_path(path: PathBuf) -> Self {
+        let title = path
+            .file_stem()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .into_owned();
+        Self {
+            path,
+            title,
+            metadata: metadata::Metadata::default(),
+        }
+    }
+
+    pub fn artist(&self) -> String {
+        if self.metadata.artists.is_empty() {
+            "Unknown artist".into()
+        } else {
+            self.metadata.artists.join(", ")
+        }
+    }
+
+    pub fn album(&self) -> &str {
+        self.metadata.album.as_deref().unwrap_or("Unknown album")
+    }
 }
 
 #[derive(Default)]
@@ -20,8 +49,17 @@ pub struct ScanResult {
     pub failed_paths: Vec<PathBuf>,
 }
 
-/// Discovers files by extension; decoding and tags belong to later stages.
+/// A standalone scan, also used by filesystem tests without a persistent cache.
+#[cfg(test)]
 pub fn scan(folders: &[PathBuf]) -> ScanResult {
+    scan_cached(folders, &HashMap::new(), None)
+}
+
+pub(super) fn scan_cached(
+    folders: &[PathBuf],
+    cached: &HashMap<PathBuf, Track>,
+    artwork: Option<&Path>,
+) -> ScanResult {
     let mut result = ScanResult::default();
     let mut pending = folders.to_vec();
     let mut directories = HashSet::new();
@@ -67,12 +105,10 @@ pub fn scan(folders: &[PathBuf]) -> ScanResult {
             if kind.is_dir() {
                 pending.push(path);
             } else if kind.is_file() && supported(&path) && files.insert(path.clone()) {
-                let title = path
-                    .file_stem()
-                    .unwrap_or_default()
-                    .to_string_lossy()
-                    .into_owned();
-                result.tracks.push(Track { path, title });
+                match metadata::read_track(&path, cached.get(&path), artwork) {
+                    Ok(track) => result.tracks.push(track),
+                    Err(error) => record_error(&mut result, &path, error),
+                }
             }
         }
     }

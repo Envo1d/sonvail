@@ -14,7 +14,7 @@ use anyhow::{Context, Result};
 use notify::{Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 
 use super::{
-    ScanResult, Track, scan,
+    ScanResult, Track, scan_cached,
     store::{Sources, Store, Tracks},
 };
 
@@ -60,7 +60,7 @@ impl LibraryService {
         let worker_stop = stop.clone();
         let events = commands.clone();
         thread::Builder::new()
-            .name("soundora-library".into())
+            .name("sonvail-library".into())
             .spawn(move || {
                 let mut revision = 0;
                 if let Err(error) = run(
@@ -76,7 +76,7 @@ impl LibraryService {
                     let _ = updates.send_blocking(Update::Failed {
                         revision,
                         message: format!(
-                            "Library unavailable: {error:#}. Check the logs and restart Soundora."
+                            "Library unavailable: {error:#}. Check the logs and restart Sonvail."
                         ),
                     });
                 }
@@ -182,7 +182,7 @@ impl Watches {
                 Ok(watcher) => self.watcher = Some(watcher),
                 Err(error) => {
                     tracing::warn!(%error, "Cannot initialize library watcher");
-                    return (false, Some("File watching is unavailable; Soundora will retry automatically. Check the logs.".into()));
+                    return (false, Some("File watching is unavailable; Sonvail will retry automatically. Check the logs.".into()));
                 }
             }
         }
@@ -228,7 +228,7 @@ impl Watches {
                 }
             }
         }
-        (recovered, (errors > 0).then(|| "Some folders cannot be watched; Soundora will retry automatically. Check the logs.".into()))
+        (recovered, (errors > 0).then(|| "Some folders cannot be watched; Sonvail will retry automatically. Check the logs.".into()))
     }
 }
 
@@ -319,6 +319,7 @@ fn run(
     revision: &mut u64,
 ) -> Result<()> {
     let mut store = Store::open(database)?;
+    let artwork = database.with_file_name("artwork");
     let (previous, mut tracks) = store.load()?;
     let mut sources = resolve_sources(&folders, &previous);
     retain_sources(&mut tracks, &sources);
@@ -342,7 +343,8 @@ fn run(
                 if stop.load(Ordering::Acquire) {
                     return Ok(());
                 }
-                let errors = reconcile(&mut tracks, &scope, scan(std::slice::from_ref(&scope)));
+                let result = scan_cached(std::slice::from_ref(&scope), &tracks, Some(&artwork));
+                let errors = reconcile(&mut tracks, &scope, result);
                 scan_errors.retain(|path, _| !path.starts_with(&scope));
                 if errors > 0 {
                     scan_errors.insert(scope, errors);
@@ -362,7 +364,7 @@ fn run(
                     tracing::error!(error = %format!("{error:#}"), "Cannot persist library");
                     retry_at = Instant::now() + RETRY;
                     database_dirty = true;
-                    Some("Library changes could not be saved. Soundora will retry automatically. Check the logs.".into())
+                    Some("Library changes could not be saved. Sonvail will retry automatically. Check the logs.".into())
                 }
             };
             publish(
@@ -398,6 +400,15 @@ fn run(
                     Ok(event) if event.need_rescan() => sources.values().cloned().collect(),
                     Ok(event) => {
                         apply_confirmed_removals(&mut tracks, &event);
+                        // Tag editors may preserve size/mtime. An explicit file
+                        // event must bypass the stat cache for that file.
+                        if !matches!(event.kind, EventKind::Access(_)) {
+                            for path in &event.paths {
+                                if let Some(track) = tracks.get_mut(&normalize(path)) {
+                                    track.metadata.version = 0;
+                                }
+                            }
+                        }
                         // A watch belongs to the old directory object after a
                         // source is replaced, even if its path already exists again.
                         if matches!(
@@ -419,7 +430,7 @@ fn run(
                         // Reattach on the next retry, then reconcile any missed events.
                         watches = Watches::new();
                         warning = Some(
-                            "File watching was interrupted; Soundora will reconnect automatically."
+                            "File watching was interrupted; Sonvail will reconnect automatically."
                                 .into(),
                         );
                         sources.values().cloned().collect()

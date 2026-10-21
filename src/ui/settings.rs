@@ -162,7 +162,7 @@ pub(super) fn settings_view(
                 .child(
                     div()
                         .child(div().text_size(px(30.0)).font_weight(FontWeight::SEMIBOLD).child("Settings"))
-                        .child(description(theme, "Make Soundora feel like home.")),
+                        .child(description(theme, "Make Sonvail feel like home.")),
                 )
                 .child(
                     section(theme)
@@ -206,7 +206,7 @@ pub(super) fn settings_view(
                 .child(
                     section(theme)
                         .child(section_title("Music library"))
-                        .child(description(theme, "Choose the folders Soundora will scan for music."))
+                        .child(description(theme, "Choose the folders Sonvail will scan for music."))
                         .child(
                             div()
                                 .mt_4()
@@ -278,6 +278,7 @@ pub(super) fn settings_view(
                         .when_some(view.settings.message.as_deref(), |this, message| this.child(description(theme, message)))
                         .child(div().mt_4().child(description(theme, "Folders are scanned at startup. Library updates automatically when files change."))),
                 )
+                .child(section(theme).child(super::updater::update_settings(view, theme, cx)))
                 .child(description(theme, "Changes are saved automatically.")),
         )
 }

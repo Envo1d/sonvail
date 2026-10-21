@@ -6,6 +6,8 @@ pub struct Layout {
     pub artwork: f32,
     pub padding: f32,
     pub settings_max_width: f32,
+    pub hero_gap: f32,
+    pub hero_text_top: f32,
 }
 
 impl Layout {
@@ -20,6 +22,8 @@ impl Layout {
             artwork: (content * 0.4).clamp(196.0, 276.0),
             padding,
             settings_max_width: 880.0,
+            hero_gap: if width < 1280.0 { 22.0 } else { 32.0 },
+            hero_text_top: if width < 1280.0 { 16.0 } else { 44.0 },
         }
     }
 }

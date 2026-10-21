@@ -29,13 +29,40 @@ pub struct AppPaths {
 
 impl AppPaths {
     pub fn resolve() -> Result<Self> {
-        let dirs = ProjectDirs::from("com", "Envo1d", "Soundora")
+        let dirs = ProjectDirs::from("com", "Envo1d", "Sonvail")
             .context("Unable to locate application system folders")?;
-        Ok(Self {
+        let legacy = ProjectDirs::from("com", "Envo1d", "Soundora")
+            .context("Unable to locate legacy application folders")?;
+        Self::prefer_existing(Self::from_dirs(&dirs), Self::from_dirs(&legacy))
+    }
+
+    fn from_dirs(dirs: &ProjectDirs) -> Self {
+        Self {
             config_path: dirs.config_dir().join("settings.json"),
             logs_path: dirs.data_local_dir().join("logs"),
             library_path: dirs.data_local_dir().join("library.sqlite3"),
-        })
+        }
+    }
+
+    fn prefer_existing(current: Self, legacy: Self) -> Result<Self> {
+        // Preserve the existing database, artwork and settings in place after
+        // rebranding. Never copy a database while another process may use it.
+        if !current.has_saved_data()? && legacy.has_saved_data()? {
+            Ok(legacy)
+        } else {
+            Ok(current)
+        }
+    }
+
+    fn has_saved_data(&self) -> Result<bool> {
+        Ok(self
+            .config_path
+            .try_exists()
+            .context("Cannot inspect saved settings")?
+            || self
+                .library_path
+                .try_exists()
+                .context("Cannot inspect saved library")?)
     }
 }
 

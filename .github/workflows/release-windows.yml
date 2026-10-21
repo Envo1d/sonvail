@@ -1,0 +1,80 @@
+name: Windows release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-release-main
+  cancel-in-progress: false
+
+jobs:
+  version:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    outputs:
+      release: ${{ steps.version.outputs.release }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          package-manager-cache: false
+      - name: Validate version and check for a new release
+        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/github-release.mjs prepare
+
+  release:
+    needs: version
+    if: needs.version.outputs.release == 'true'
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    env:
+      CARGO_INCREMENTAL: "0"
+      SONVAIL_UPDATER_PUBLIC_KEY: ${{ vars.SONVAIL_UPDATER_PUBLIC_KEY }}
+      SONVAIL_SIGNING_PRIVATE_KEY: ${{ secrets.SONVAIL_SIGNING_PRIVATE_KEY }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          package-manager-cache: false
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "8.0.x"
+      - name: Require signing configuration and locate shader compiler
+        shell: pwsh
+        run: |
+          if (-not $env:SONVAIL_UPDATER_PUBLIC_KEY -or -not $env:SONVAIL_SIGNING_PRIVATE_KEY) {
+            throw "Configure SONVAIL_UPDATER_PUBLIC_KEY variable and SONVAIL_SIGNING_PRIVATE_KEY secret."
+          }
+          $compiler = Get-ChildItem 'C:\Program Files (x86)\Windows Kits\10\bin\*\x64\fxc.exe' | Sort-Object FullName -Descending | Select-Object -First 1
+          if (-not $compiler) { throw "Windows SDK fxc.exe not found" }
+          "GPUI_FXC_PATH=$($compiler.FullName)" >> $env:GITHUB_ENV
+      - name: Test
+        run: cargo test --locked
+      - name: Format
+        run: cargo fmt --check
+      - name: Clippy
+        run: cargo clippy --all-targets --locked
+      - name: Build setup and signed update feed
+        shell: pwsh
+        run: ./scripts/build-windows.ps1
+      - name: Tag built commit and publish complete release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/github-release.mjs publish

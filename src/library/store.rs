@@ -29,8 +29,18 @@ impl Store {
                  PRAGMA user_version = 1;
                  COMMIT;"
             ).context("Cannot initialize library database")?,
-            1 => {},
+            1 | 2 => {},
             _ => bail!("Library database version {version} is newer than this application supports"),
+        }
+        if version < 2 {
+            connection
+                .execute_batch(
+                    "BEGIN IMMEDIATE;
+                 ALTER TABLE tracks ADD COLUMN metadata_json TEXT NOT NULL DEFAULT '{}';
+                 PRAGMA user_version = 2;
+                 COMMIT;",
+                )
+                .context("Cannot migrate library metadata schema")?;
         }
         Ok(Self(connection))
     }
@@ -42,7 +52,9 @@ impl Store {
                 Ok((decode_path(row.get(0)?), decode_path(row.get(1)?)))
             })?
             .collect::<rusqlite::Result<Sources>>()?;
-        let mut statement = self.0.prepare("SELECT path, title FROM tracks")?;
+        let mut statement = self
+            .0
+            .prepare("SELECT path, title, metadata_json FROM tracks")?;
         let tracks = statement
             .query_map([], |row| {
                 let path = decode_path(row.get(0)?);
@@ -51,6 +63,15 @@ impl Store {
                     Track {
                         path,
                         title: row.get(1)?,
+                        metadata: serde_json::from_str(&row.get::<_, String>(2)?).map_err(
+                            |error| {
+                                rusqlite::Error::FromSqlConversionFailure(
+                                    2,
+                                    rusqlite::types::Type::Text,
+                                    Box::new(error),
+                                )
+                            },
+                        )?,
                     },
                 ))
             })?
@@ -70,9 +91,9 @@ impl Store {
             .filter(|track| previous.get(&track.path) != Some(*track))
         {
             tx.execute(
-                "INSERT INTO tracks(path, title) VALUES (?1, ?2)
-                 ON CONFLICT(path) DO UPDATE SET title = excluded.title",
-                params![encode_path(&track.path), track.title],
+                "INSERT INTO tracks(path, title, metadata_json) VALUES (?1, ?2, ?3)
+                 ON CONFLICT(path) DO UPDATE SET title = excluded.title, metadata_json = excluded.metadata_json",
+                params![encode_path(&track.path), track.title, serde_json::to_string(&track.metadata)?],
             )?;
         }
         tx.execute("DELETE FROM sources", [])?;
@@ -137,6 +158,7 @@ mod tests {
             Track {
                 path,
                 title: "song".into(),
+                ..Track::default()
             },
         )]);
         Store::open(&db).unwrap().save(&sources, &tracks).unwrap();
@@ -155,6 +177,7 @@ mod tests {
         let track = Track {
             path: "song.mp3".into(),
             title: "song".into(),
+            ..Track::default()
         };
         let tracks = Tracks::from([(track.path.clone(), track)]);
         store.save(&Sources::new(), &tracks).unwrap();
@@ -182,6 +205,42 @@ mod tests {
                 .pragma_query_value(None, "user_version", |row| row.get::<_, u32>(0))
                 .unwrap(),
             99
+        );
+    }
+
+    #[test]
+    fn migrates_version_one_without_losing_tracks_and_persists_metadata() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("library.sqlite3");
+        let old = Connection::open(&path).unwrap();
+        old.execute_batch(
+            "CREATE TABLE tracks (path BLOB PRIMARY KEY NOT NULL, title TEXT NOT NULL);
+            CREATE TABLE sources (path BLOB PRIMARY KEY NOT NULL, canonical_path BLOB NOT NULL);
+            PRAGMA user_version = 1;",
+        )
+        .unwrap();
+        old.execute(
+            "INSERT INTO tracks VALUES (?1, 'Old title')",
+            [encode_path(Path::new("music.wav"))],
+        )
+        .unwrap();
+        drop(old);
+        let mut store = Store::open(&path).unwrap();
+        let (_, mut tracks) = store.load().unwrap();
+        let track = tracks.values_mut().next().unwrap();
+        assert_eq!(track.title, "Old title");
+        assert_eq!(track.metadata.version, 0);
+        track.metadata.artists = vec!["Artist A".into(), "Artist B".into()];
+        track.metadata.release_date = Some("2025-05-02".into());
+        track.metadata.duration_ms = Some(123456);
+        store.save(&Sources::new(), &tracks).unwrap();
+        assert_eq!(Store::open(&path).unwrap().load().unwrap().1, tracks);
+        assert_eq!(
+            store
+                .0
+                .pragma_query_value(None, "user_version", |row| row.get::<_, u32>(0))
+                .unwrap(),
+            2
         );
     }
 }

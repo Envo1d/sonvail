@@ -6,6 +6,10 @@ use super::theme;
 
 // Small, embedded vector assets keep the shell independent of the working directory.
 const ICONS: &[(&str, &str)] = &[
+    (
+        "stop",
+        r#"<rect x="6" y="6" width="12" height="12" rx="1" fill="black"/>"#,
+    ),
     ("pause", r#"<path d="M8 5v14M16 5v14" stroke-width="3.5"/>"#),
     (
         "heart-filled",
@@ -97,23 +101,23 @@ const ALBUM_BYTES: &[u8] = include_bytes!("../../assets/artwork/twilight-ring.pn
 const APP_ICONS: &[(u32, &str, &[u8])] = &[
     (
         32,
-        "icons/soundora-32.png",
-        include_bytes!("../../assets/icons/soundora-32.png"),
+        "icons/sonvail-32.png",
+        include_bytes!("../../assets/icons/sonvail-32.png"),
     ),
     (
         64,
-        "icons/soundora-64.png",
-        include_bytes!("../../assets/icons/soundora-64.png"),
+        "icons/sonvail-64.png",
+        include_bytes!("../../assets/icons/sonvail-64.png"),
     ),
     (
         128,
-        "icons/soundora-128.png",
-        include_bytes!("../../assets/icons/soundora-128.png"),
+        "icons/sonvail-128.png",
+        include_bytes!("../../assets/icons/sonvail-128.png"),
     ),
     (
         256,
-        "icons/soundora-256.png",
-        include_bytes!("../../assets/icons/soundora-256.png"),
+        "icons/sonvail-256.png",
+        include_bytes!("../../assets/icons/sonvail-256.png"),
     ),
 ];
 

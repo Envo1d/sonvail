@@ -4,6 +4,7 @@ fn track(path: PathBuf) -> Track {
     Track {
         title: path.file_stem().unwrap().to_string_lossy().into(),
         path,
+        ..Track::default()
     }
 }
 
@@ -169,5 +170,37 @@ fn watcher_handles_nested_directory_moves_and_recreated_sources() {
     wait_for(&updates, |s| {
         s.tracks.len() == 1 && s.tracks[0].title == "returned"
     });
+    drop(service);
+}
+
+#[test]
+fn watcher_refreshes_changed_tags_and_persists_metadata() {
+    use lofty::{
+        prelude::{Accessor, TagExt},
+        tag::{Tag, TagType},
+    };
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().join("music");
+    std::fs::create_dir(&root).unwrap();
+    let path = root.join("song.wav");
+    crate::library::metadata::tests::wav(&path);
+    let db = temp.path().join("data/library.sqlite3");
+    let (service, updates) = LibraryService::start(db.clone(), vec![root]).unwrap();
+    wait_for(&updates, |s| {
+        !s.scanning && s.tracks.len() == 1 && s.tracks[0].metadata.duration_ms == Some(1000)
+    });
+    let mut tag = Tag::new(TagType::Id3v2);
+    tag.set_title("Title from tags".into());
+    tag.set_artist("Artist from tags".into());
+    tag.save_to_path(&path, lofty::config::WriteOptions::default())
+        .unwrap();
+    wait_for(&updates, |s| {
+        s.tracks.len() == 1 && s.tracks[0].title == "Title from tags"
+    });
+    let (_, cached) = Store::open(&db).unwrap().load().unwrap();
+    assert_eq!(
+        cached.values().next().unwrap().metadata.artists,
+        ["Artist from tags"]
+    );
     drop(service);
 }

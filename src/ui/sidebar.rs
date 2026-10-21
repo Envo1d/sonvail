@@ -38,7 +38,7 @@ pub fn sidebar(
                         .size(px(APP_ICON_SIZE))
                         .flex_shrink_0(),
                 )
-                .child(div().text_size(px(18.0)).child("Soundora")),
+                .child(div().text_size(px(18.0)).child("Sonvail")),
         )
         .child(
             div()

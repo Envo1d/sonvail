@@ -13,7 +13,7 @@ pub fn run(store: ConfigStore) {
         .with_assets(Assets)
         .run(move |cx: &mut App| {
             cx.on_app_quit(move |_| {
-                tracing::info!("Shutting down Soundora");
+                tracing::info!("Shutting down Sonvail");
                 std::future::ready(())
             })
             .detach();
@@ -31,7 +31,7 @@ pub fn run(store: ConfigStore) {
                     window_min_size: Some(size(px(1120.0), px(720.0))),
                     window_background: WindowBackgroundAppearance::Blurred,
                     titlebar: Some(TitlebarOptions {
-                        title: Some("Soundora".into()),
+                        title: Some("Sonvail".into()),
                         appears_transparent: true,
                         ..Default::default()
                     }),
@@ -53,7 +53,7 @@ pub fn run(store: ConfigStore) {
                     cx.new(|cx| RootView::new(store, window, cx))
                 },
             )
-            .expect("failed to open the Soundora window");
+            .expect("failed to open the Sonvail window");
 
             cx.activate(true);
         });
