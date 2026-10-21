@@ -74,7 +74,14 @@ pub fn sidebar(
                         }),
                     ),
                 )
-                .child(nav_item(theme, "library", "Library", false))
+                .child(
+                    nav_item(theme, "library", "Library", page == Page::Library).on_click(
+                        cx.listener(|view, _, _, cx| {
+                            view.page = Page::Library;
+                            cx.notify();
+                        }),
+                    ),
+                )
                 .child(nav_item(theme, "playlist", "Playlists", false))
                 .child(nav_item(theme, "album", "Albums", false))
                 .child(nav_item(theme, "artist", "Artists", false)),

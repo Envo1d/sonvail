@@ -1,4 +1,5 @@
 // Dimensions follow the reference window while keeping the minimum window usable.
+#[derive(Clone, Copy)]
 pub struct Layout {
     pub sidebar: f32,
     pub queue: f32,

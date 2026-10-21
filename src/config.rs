@@ -24,6 +24,7 @@ pub struct AppConfig {
 pub struct AppPaths {
     pub config_path: PathBuf,
     pub logs_path: PathBuf,
+    pub library_path: PathBuf,
 }
 
 impl AppPaths {
@@ -33,6 +34,7 @@ impl AppPaths {
         Ok(Self {
             config_path: dirs.config_dir().join("settings.json"),
             logs_path: dirs.data_local_dir().join("logs"),
+            library_path: dirs.data_local_dir().join("library.sqlite3"),
         })
     }
 }
@@ -65,6 +67,10 @@ impl ConfigStore {
 
     pub fn snapshot(&self) -> &AppConfig {
         &self.settings
+    }
+
+    pub fn library_path(&self) -> &std::path::Path {
+        &self.paths.library_path
     }
 
     #[tracing::instrument(skip_all, err)]

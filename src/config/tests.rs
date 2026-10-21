@@ -4,6 +4,7 @@ fn paths(directory: &std::path::Path) -> AppPaths {
     AppPaths {
         config_path: directory.join("config/settings.json"),
         logs_path: directory.join("logs"),
+        library_path: directory.join("library.sqlite3"),
     }
 }
 

@@ -3,6 +3,7 @@ use gpui::{Context, IntoElement, Render, Styled, Window, div, prelude::*, px, rg
 
 use super::{
     layout::Layout,
+    library::{Library, library_view},
     now_playing::now_playing,
     player_bar::player_bar,
     queue::queue,
@@ -15,6 +16,7 @@ use super::{
 pub enum Page {
     #[default]
     NowPlaying,
+    Library,
     Settings,
 }
 
@@ -22,17 +24,21 @@ pub struct RootView {
     pub(super) page: Page,
     pub(super) settings: Settings,
     pub(super) config: ConfigStore,
+    pub(super) library: Library,
 }
 
 impl RootView {
     pub fn new(config: ConfigStore, window: &mut Window, cx: &mut Context<Self>) -> Self {
         cx.observe_window_appearance(window, |_, _, cx| cx.notify())
             .detach();
-        Self {
+        let mut view = Self {
             page: Page::default(),
             settings: Settings::from_config(config.snapshot()),
             config,
-        }
+            library: Library::default(),
+        };
+        view.start_library(cx);
+        view
     }
 }
 
@@ -88,6 +94,9 @@ impl Render for RootView {
                                     })
                                     .when(self.page == Page::Settings, |this| {
                                         this.child(settings_view(self, theme, layout, cx))
+                                    })
+                                    .when(self.page == Page::Library, |this| {
+                                        this.child(library_view(self, theme, layout, cx))
                                     }),
                             ),
                     ),

@@ -55,6 +55,7 @@ impl Settings {
 
 impl RootView {
     fn save_settings(&mut self, cx: &mut Context<Self>) {
+        let previous_folders = self.config.snapshot().library_folders.clone();
         let draft = AppConfig {
             theme: self.settings.theme,
             library_folders: self
@@ -73,6 +74,9 @@ impl RootView {
                 self.settings.folders = previous.folders;
                 self.settings.message = Some("Could not save settings. The change was reverted. Check the logs and try again.".into());
             }
+        }
+        if previous_folders != self.config.snapshot().library_folders {
+            self.update_library_sources(cx);
         }
         cx.notify();
     }
@@ -272,7 +276,7 @@ pub(super) fn settings_view(
                                 )
                         }))
                         .when_some(view.settings.message.as_deref(), |this, message| this.child(description(theme, message)))
-                        .child(div().mt_4().child(description(theme, "Folder selection is ready. Music scanning will be connected in a future update."))),
+                        .child(div().mt_4().child(description(theme, "Folders are scanned at startup. Library updates automatically when files change."))),
                 )
                 .child(description(theme, "Changes are saved automatically.")),
         )

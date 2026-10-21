@@ -5,6 +5,7 @@
 
 mod app;
 mod config;
+mod library;
 mod logging;
 mod ui;
 

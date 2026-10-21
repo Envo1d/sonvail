@@ -2,6 +2,7 @@ mod components;
 mod demo;
 mod icons;
 mod layout;
+mod library;
 mod now_playing;
 mod player_bar;
 mod queue;
