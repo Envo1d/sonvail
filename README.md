@@ -22,6 +22,7 @@ Sonvail brings your local music, metadata and playback queue into one desktop wo
 - **Playback queue:** select tracks from Library or the current queue, follow the active track in Now Playing and preview upcoming tracks in Queue and Up Next.
 - **Background audio processing:** bounded PCM buffering, file decoding outside the device callback, unreadable-track skipping and audio-output recovery after stream errors.
 - **Desktop appearance:** Dark, Light and System themes, translucent Acrylic panels, a custom window titlebar and DPI-aware application icons.
+- **System tray:** close the window to keep music playing in the background. Click the Sonvail tray icon to reopen it, or choose **Exit** from its menu to quit.
 - **Persistent settings and diagnostics:** automatically save the theme and source folders, retain indexed records for temporarily unavailable folders and write daily diagnostic logs.
 - **Signed Windows updates:** check for releases in Settings, download with progress and install with a restart through Velopack. Package updates require an initial Setup installation and configured release signing.
 

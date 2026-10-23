@@ -38,7 +38,21 @@ pub fn run(store: ConfigStore) {
                     ..Default::default()
                 },
                 |window, cx| {
-                    window.on_window_should_close(cx, |_, cx| {
+                    #[cfg(target_os = "windows")]
+                    let tray = match crate::tray::install(window, cx) {
+                        Ok(tray) => Some(tray),
+                        Err(error) => {
+                            tracing::error!(%error, "Tray unavailable; closing the window will quit");
+                            None
+                        }
+                    };
+                    window.on_window_should_close(cx, move |_, cx| {
+                        #[cfg(target_os = "windows")]
+                        if let Some(tray) = &tray
+                            && tray.hide()
+                        {
+                            return false;
+                        }
                         if cx.windows().len() == 1 {
                             // Quit while the native window is still alive. GPUI 0.2.2's
                             // WM_CLOSE path otherwise destroys HWND before deferred

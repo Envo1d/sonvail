@@ -8,6 +8,8 @@ mod config;
 mod library;
 mod logging;
 mod playback;
+#[cfg(target_os = "windows")]
+mod tray;
 mod ui;
 mod updater;
 

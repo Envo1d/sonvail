@@ -458,6 +458,7 @@ dependencies = [
  "minisign-verify",
  "notify",
  "rand 0.10.1",
+ "raw-window-handle",
  "rodio",
  "rusqlite",
  "serde",
@@ -468,6 +469,7 @@ dependencies = [
  "tracing-appender",
  "tracing-subscriber",
  "velopack",
+ "windows 0.61.3",
 ]
 
 [[package]]
