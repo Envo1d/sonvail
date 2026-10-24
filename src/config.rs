@@ -17,6 +17,7 @@ pub enum ThemeMode {
 #[serde(default, rename_all = "camelCase", deny_unknown_fields)]
 pub struct AppConfig {
     pub theme: ThemeMode,
+    pub equalizer: crate::equalizer::EqualizerSettings,
     pub library_folders: Vec<PathBuf>,
 }
 
@@ -76,7 +77,7 @@ pub struct ConfigStore {
 impl ConfigStore {
     #[tracing::instrument(skip_all, fields(config_path = %paths.config_path.display()), err)]
     pub fn load(paths: AppPaths) -> Result<Self> {
-        let settings = match fs::read(&paths.config_path) {
+        let mut settings: AppConfig = match fs::read(&paths.config_path) {
             Ok(bytes) => serde_json::from_slice(&bytes).with_context(|| {
                 format!("Invalid configuration {}", paths.config_path.display())
             })?,
@@ -88,6 +89,7 @@ impl ConfigStore {
             }
             Err(error) => return Err(error).context("Cannot read configuration"),
         };
+        settings.equalizer = settings.equalizer.normalized();
         tracing::info!("Configuration loaded");
         Ok(Self { paths, settings })
     }

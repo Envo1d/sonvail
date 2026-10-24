@@ -80,6 +80,7 @@ pub enum Command {
     Previous,
     Seek(Duration),
     Volume(f32),
+    Equalizer(crate::equalizer::EqualizerSettings),
     Repeat(Repeat),
     Shuffle(bool),
     RefreshLibrary(Arc<Vec<Track>>),
@@ -340,6 +341,7 @@ impl<B: Output> Engine<B> {
                 self.output.volume(self.state.volume);
             }
             Command::Volume(_) => {}
+            Command::Equalizer(settings) => self.output.equalizer(settings),
             Command::Repeat(repeat) => self.queue.repeat = repeat,
             Command::Shuffle(shuffle) => self.queue.set_shuffle(shuffle),
             Command::RefreshLibrary(tracks) => {

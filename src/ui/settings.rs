@@ -13,6 +13,7 @@ use super::{
 #[derive(Default)]
 pub(super) struct Settings {
     pub theme: ThemeMode,
+    pub equalizer: crate::equalizer::EqualizerSettings,
     folders: Vec<LibraryFolder>,
     choosing_folders: bool,
     message: Option<String>,
@@ -27,6 +28,7 @@ impl Settings {
     pub(super) fn from_config(config: &AppConfig) -> Self {
         Self {
             theme: config.theme,
+            equalizer: config.equalizer,
             folders: config
                 .library_folders
                 .iter()
@@ -54,10 +56,11 @@ impl Settings {
 }
 
 impl RootView {
-    fn save_settings(&mut self, cx: &mut Context<Self>) {
+    pub(super) fn save_settings(&mut self, cx: &mut Context<Self>) {
         let previous_folders = self.config.snapshot().library_folders.clone();
         let draft = AppConfig {
             theme: self.settings.theme,
+            equalizer: self.settings.equalizer,
             library_folders: self
                 .settings
                 .folders
@@ -71,6 +74,7 @@ impl RootView {
                 tracing::error!(error = %format!("{error:#}"), "Settings change was not saved");
                 let previous = Settings::from_config(self.config.snapshot());
                 self.settings.theme = previous.theme;
+                self.settings.equalizer = previous.equalizer;
                 self.settings.folders = previous.folders;
                 self.settings.message = Some("Could not save settings. The change was reverted. Check the logs and try again.".into());
             }
@@ -78,6 +82,10 @@ impl RootView {
         if previous_folders != self.config.snapshot().library_folders {
             self.update_library_sources(cx);
         }
+        self.playback_command(
+            crate::playback::Command::Equalizer(self.settings.equalizer),
+            cx,
+        );
         cx.notify();
     }
 
@@ -275,9 +283,10 @@ pub(super) fn settings_view(
                                         .child("Remove"),
                                 )
                         }))
-                        .when_some(view.settings.message.as_deref(), |this, message| this.child(description(theme, message)))
                         .child(div().mt_4().child(description(theme, "Folders are scanned at startup. Library updates automatically when files change."))),
                 )
+                .child(section(theme).child(super::equalizer::equalizer_view(view, theme, layout, cx)))
+                .when_some(view.settings.message.as_deref(), |this, message| this.child(description(theme, message)))
                 .child(section(theme).child(super::updater::update_settings(view, theme, cx)))
                 .child(description(theme, "Changes are saved automatically.")),
         )

@@ -6,6 +6,8 @@ pub struct Layout {
     pub artwork: f32,
     pub padding: f32,
     pub settings_max_width: f32,
+    pub equalizer_height: f32,
+    pub equalizer_band_width: f32,
     pub hero_gap: f32,
     pub hero_text_top: f32,
 }
@@ -22,6 +24,8 @@ impl Layout {
             artwork: (content * 0.4).clamp(196.0, 276.0),
             padding,
             settings_max_width: 880.0,
+            equalizer_height: 160.0,
+            equalizer_band_width: 42.0,
             hero_gap: if width < 1280.0 { 22.0 } else { 32.0 },
             hero_text_top: if width < 1280.0 { 16.0 } else { 44.0 },
         }

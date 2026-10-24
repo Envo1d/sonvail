@@ -1,4 +1,5 @@
 mod components;
+mod equalizer;
 mod icons;
 mod layout;
 mod library;

@@ -221,7 +221,10 @@ fn cache_picture(directory: &Path, bytes: &[u8]) -> Result<String> {
     if bytes.len() > MAX_PICTURE_BYTES {
         bail!("Embedded picture exceeds 16 MiB");
     }
-    let key = format!("{:x}", Sha256::digest(bytes));
+    let key: String = Sha256::digest(bytes)
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect();
     let path = directory.join(format!("{key}.png"));
     let thumbnail = directory.join(format!("{key}-thumb.png"));
     if path.is_file() && thumbnail.is_file() {

@@ -15,7 +15,12 @@ pub(super) struct Playback {
 impl RootView {
     pub(super) fn start_playback(&mut self, cx: &mut Context<Self>) {
         match PlaybackService::start() {
-            Ok(service) => self.playback.service = Some(service),
+            Ok(service) => {
+                if let Err(error) = service.send(Command::Equalizer(self.settings.equalizer)) {
+                    self.playback.snapshot.error = Some(error.to_string());
+                }
+                self.playback.service = Some(service);
+            }
             Err(error) => self.playback.snapshot.error = Some(format!("{error:#}")),
         }
         cx.on_app_quit(|view, _| {

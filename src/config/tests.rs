@@ -53,6 +53,10 @@ fn missing_config_is_created_and_changes_survive_reload() {
     assert_eq!(store.snapshot(), &AppConfig::default());
     let draft = AppConfig {
         theme: ThemeMode::System,
+        equalizer: crate::equalizer::EqualizerSettings {
+            enabled: true,
+            gains: [-12, -6, 0, 3, 6, 9, 12, 2, -2],
+        },
         library_folders: vec![
             directory.path().join("Music with spaces/Музика"),
             directory.path().join("Offline drive"),
@@ -77,9 +81,28 @@ fn partial_config_uses_defaults_without_rewriting_file() {
     assert_eq!(store.snapshot().theme, ThemeMode::Light);
     assert!(store.snapshot().library_folders.is_empty());
     assert_eq!(
+        store.snapshot().equalizer,
+        crate::equalizer::EqualizerSettings::default()
+    );
+    assert_eq!(
         fs::read(&paths.config_path).unwrap(),
         br#"{"theme":"light"}"#
     );
+}
+
+#[test]
+fn equalizer_values_are_clamped_on_load_without_rewriting_file() {
+    let directory = tempfile::tempdir().unwrap();
+    let paths = paths(directory.path());
+    fs::create_dir_all(paths.config_path.parent().unwrap()).unwrap();
+    let bytes = br#"{"equalizer":{"enabled":true,"gains":[-127,-12,-1,0,1,12,127,0,0]}}"#;
+    fs::write(&paths.config_path, bytes).unwrap();
+    let store = ConfigStore::load(paths.clone()).unwrap();
+    assert_eq!(
+        store.snapshot().equalizer.gains,
+        [-12, -12, -1, 0, 1, 12, 12, 0, 0]
+    );
+    assert_eq!(fs::read(paths.config_path).unwrap(), bytes);
 }
 
 #[test]

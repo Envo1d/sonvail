@@ -10,6 +10,7 @@ struct FakeOutput {
     paused: bool,
     ended: bool,
     volume: f32,
+    equalizer: crate::equalizer::EqualizerSettings,
     stream_error: Option<String>,
 }
 
@@ -34,6 +35,9 @@ impl Output for FakeOutput {
         self.ended = false;
         Ok(Some(Duration::from_secs(60)))
     }
+    fn equalizer(&mut self, settings: crate::equalizer::EqualizerSettings) {
+        self.equalizer = settings;
+    }
     fn pause(&self, _: bool) {}
     fn volume(&self, _: f32) {}
     fn stop(&mut self) {
@@ -56,6 +60,33 @@ fn playlist() -> Arc<Vec<Track>> {
             .map(|name| Track::from_path(format!("{name}.wav").into()))
             .to_vec(),
     )
+}
+
+#[test]
+fn equalizer_updates_do_not_restart_or_change_playback_and_survive_transitions() {
+    let mut engine = Engine::new(FakeOutput::default());
+    let settings = crate::equalizer::EqualizerSettings {
+        enabled: true,
+        gains: [-12, 0, 0, 0, 6, 0, 0, 0, 12],
+    };
+    engine.handle(Command::Equalizer(settings));
+    engine.handle(Command::Play {
+        tracks: playlist(),
+        index: 0,
+    });
+    engine.handle(Command::Toggle);
+    let attempts = engine.output.attempts.len();
+    engine.handle(Command::Equalizer(settings));
+    assert_eq!(engine.output.attempts.len(), attempts);
+    assert_eq!(engine.state.status, Status::Paused);
+    engine.handle(Command::Seek(Duration::from_secs(10)));
+    engine.handle(Command::Next);
+    engine.handle(Command::Stop);
+    engine.handle(Command::Play {
+        tracks: Arc::new(vec![]),
+        index: 0,
+    });
+    assert_eq!(engine.output.equalizer, settings);
 }
 
 #[test]

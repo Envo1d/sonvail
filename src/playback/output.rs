@@ -1,6 +1,6 @@
 use std::{
     sync::{
-        Arc,
+        Arc, Mutex,
         atomic::{AtomicBool, AtomicU64, Ordering},
         mpsc,
     },
@@ -10,7 +10,7 @@ use std::{
 use anyhow::{Context, Result};
 use rodio::{DeviceSinkBuilder, MixerDeviceSink, Player, Source};
 
-use crate::library::Track;
+use crate::{equalizer::EqualizerSettings, library::Track};
 
 use super::source::BufferedAudio;
 
@@ -28,6 +28,7 @@ pub(super) trait Output {
         paused: bool,
         volume: f32,
     ) -> Result<Option<Duration>, LoadError>;
+    fn equalizer(&mut self, settings: EqualizerSettings);
     fn pause(&self, paused: bool);
     fn volume(&self, volume: f32);
     fn stop(&mut self);
@@ -38,6 +39,7 @@ pub(super) trait Output {
 
 #[derive(Default)]
 pub(super) struct RodioOutput {
+    equalizer: Arc<Mutex<EqualizerSettings>>,
     player: Option<Player>,
     stream: Option<MixerDeviceSink>,
     errors: Option<mpsc::Receiver<String>>,
@@ -74,7 +76,8 @@ impl Output for RodioOutput {
         paused: bool,
         volume: f32,
     ) -> Result<Option<Duration>, LoadError> {
-        let (source, duration) = BufferedAudio::open(track, offset).map_err(LoadError::Track)?;
+        let (source, duration) =
+            BufferedAudio::open(track, offset, self.equalizer.clone()).map_err(LoadError::Track)?;
         self.connect().map_err(LoadError::Device)?;
         self.stop();
         self.samples_per_second =
@@ -90,6 +93,12 @@ impl Output for RodioOutput {
         player.append(source);
         self.player = Some(player);
         Ok(duration)
+    }
+    fn equalizer(&mut self, settings: EqualizerSettings) {
+        *self
+            .equalizer
+            .lock()
+            .unwrap_or_else(|error| error.into_inner()) = settings.normalized();
     }
     fn pause(&self, paused: bool) {
         if let Some(player) = &self.player {

@@ -120,6 +120,11 @@ fn caches_bounded_artwork_by_content_and_rejects_invalid_images() {
         .write_to(&mut bytes, image::ImageFormat::Png)
         .unwrap();
     let key = cache_picture(temp.path(), bytes.get_ref()).unwrap();
+    assert_eq!(key.len(), 64);
+    assert!(
+        key.bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+    );
     assert_eq!(cache_picture(temp.path(), bytes.get_ref()).unwrap(), key);
     assert!(temp.path().join(format!("{key}.png")).is_file());
     let thumbnail = image::ImageReader::open(temp.path().join(format!("{key}-thumb.png")))

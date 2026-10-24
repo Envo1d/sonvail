@@ -3,7 +3,7 @@
 use std::{
     fs::File,
     sync::{
-        Arc,
+        Arc, Mutex,
         atomic::{AtomicBool, AtomicU64, Ordering},
         mpsc,
     },
@@ -14,7 +14,10 @@ use std::{
 use anyhow::{Context, Result};
 use rodio::{Decoder, Source};
 
-use crate::library::Track;
+use crate::{
+    equalizer::{EqualizerSettings, Processor},
+    library::Track,
+};
 
 pub(super) struct BufferedAudio {
     receiver: mpsc::Receiver<Vec<f32>>,
@@ -29,7 +32,11 @@ pub(super) struct BufferedAudio {
 }
 
 impl BufferedAudio {
-    pub fn open(track: &Track, offset: Duration) -> Result<(Self, Option<Duration>)> {
+    pub fn open(
+        track: &Track,
+        offset: Duration,
+        equalizer: Arc<Mutex<EqualizerSettings>>,
+    ) -> Result<(Self, Option<Duration>)> {
         let file = File::open(&track.path)
             .with_context(|| format!("Cannot open {}", track.path.display()))?;
         let mut decoder = Decoder::try_from(file).context("Cannot decode audio")?;
@@ -45,7 +52,7 @@ impl BufferedAudio {
         if !offset.is_zero() {
             decoder.try_seek(offset).context("Cannot seek this file")?;
         }
-        let initial: Vec<_> = decoder
+        let mut initial: Vec<_> = decoder
             .by_ref()
             .take(1024 * usize::from(channels.get()))
             .collect();
@@ -53,6 +60,9 @@ impl BufferedAudio {
             !initial.is_empty(),
             "The file contains no decodable samples at this position"
         );
+        let mut processor = Processor::new(rate.get(), usize::from(channels.get()));
+        let settings = *equalizer.lock().unwrap_or_else(|error| error.into_inner());
+        processor.process(&mut initial, settings);
         let (sender, receiver) = mpsc::sync_channel(8);
         let cancel = Arc::new(AtomicBool::new(false));
         let cancelled = cancel.clone();
@@ -67,6 +77,8 @@ impl BufferedAudio {
                     if block.is_empty() {
                         break;
                     }
+                    let settings = *equalizer.lock().unwrap_or_else(|error| error.into_inner());
+                    processor.process(&mut block, settings);
                     loop {
                         if cancelled.load(Ordering::Acquire) {
                             return;
@@ -159,7 +171,9 @@ mod tests {
         let temp = tempfile::tempdir().unwrap();
         let path = temp.path().join("broken.wav");
         std::fs::write(&path, b"broken").unwrap();
-        assert!(BufferedAudio::open(&Track::from_path(path), Duration::ZERO).is_err());
+        assert!(
+            BufferedAudio::open(&Track::from_path(path), Duration::ZERO, Arc::default()).is_err()
+        );
     }
 
     #[test]
@@ -168,7 +182,8 @@ mod tests {
         let path = temp.path().join("silent.wav");
         crate::library::metadata::tests::wav(&path);
         let track = Track::from_path(path);
-        let (mut source, duration) = BufferedAudio::open(&track, Duration::ZERO).unwrap();
+        let (mut source, duration) =
+            BufferedAudio::open(&track, Duration::ZERO, Arc::default()).unwrap();
         assert_eq!(duration, Some(Duration::from_secs(1)));
         let deadline = std::time::Instant::now() + Duration::from_secs(3);
         while source.next().is_some() {
@@ -178,13 +193,14 @@ mod tests {
             );
         }
         assert_eq!(source.consumed.load(Ordering::Relaxed), 8000);
-        let (mut source, _) = BufferedAudio::open(&track, Duration::from_millis(250)).unwrap();
+        let (mut source, _) =
+            BufferedAudio::open(&track, Duration::from_millis(250), Arc::default()).unwrap();
         let deadline = std::time::Instant::now() + Duration::from_secs(3);
         while source.next().is_some() {
             assert!(std::time::Instant::now() < deadline);
         }
         assert_eq!(source.consumed.load(Ordering::Relaxed), 6000);
-        let (mut source, _) = BufferedAudio::open(&track, Duration::ZERO).unwrap();
+        let (mut source, _) = BufferedAudio::open(&track, Duration::ZERO, Arc::default()).unwrap();
         source.cancel.store(true, Ordering::Release);
         assert_eq!(source.next(), None);
     }

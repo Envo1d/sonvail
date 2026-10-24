@@ -5,6 +5,7 @@
 
 mod app;
 mod config;
+mod equalizer;
 mod library;
 mod logging;
 mod playback;
